@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Sanes Pro</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Font Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col antialiased selection:bg-emerald-500 selection:text-slate-950">
+
+  <!-- Header App Bar -->
+  <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-30 backdrop-blur-md">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20">
+          <i data-lucide="piggy-bank" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+            SanManager <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">Pro</span>
+          </h1>
+          <p class="text-[11px] text-slate-400">Control de Sanes & Fondo de Espera</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <select id="select-active-san" onchange="switchSan(this.value)" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-2 font-medium focus:outline-none focus:border-emerald-500">
+        </select>
+
+        <button onclick="openModal('modal-create-san')" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg shadow-emerald-500/15">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Nuevo San</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-4 overflow-y-auto custom-scrollbar">
+
+    <!-- Active San Summary Header Card -->
+    <div id="san-summary-card" class="glass-card rounded-2xl p-4 sm:p-5 mb-5 relative overflow-hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 id="san-title" class="text-lg font-black text-white">Cargando...</h2>
+            <span id="san-freq-badge" class="bg-slate-800 text-slate-300 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border border-slate-700"></span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1 flex items-center gap-2">
+            <span><i data-lucide="user" class="w-3.5 h-3.5 inline text-emerald-400"></i> Org: <strong id="san-organizer" class="text-slate-200"></strong></span>
+            <span>•</span>
+            <span><i data-lucide="calendar" class="w-3.5 h-3.5 inline text-emerald-400"></i> Inicio: <strong id="san-start-date" class="text-slate-200"></strong></span>
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 self-end sm:self-center">
+          <button onclick="confirmDeleteSan()" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 p-2 rounded-xl transition text-xs flex items-center gap-1" title="Eliminar este San">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-800/80">
+        <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800">
+          <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cuota Base</span>
+          <p id="stat-quota" class="text-base font-extrabold text-emerald-400">$0</p>
+        </div>
+        <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800">
+          <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pozo por Ronda</span>
+          <p id="stat-base-pool" class="text-base font-extrabold text-white">$0</p>
+        </div>
+        <div class="bg-slate-900/60 rounded-xl p-2.5 border border-slate-800">
+          <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Integrantes</span>
+          <p id="stat-members-count" class="text-base font-extrabold text-slate-200">0</p>
+        </div>
+        <div id="stat-bonus-box" class="bg-amber-950/20 rounded-xl p-2.5 border border-amber-500/30 hidden">
+          <span class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Fondo de Espera</span>
+          <p id="stat-total-bonus" class="text-base font-extrabold text-amber-300">$0</p>
+        </div>
+      </div>
+
+      <!-- Bonus Notice if active -->
+      <div id="bonus-info-banner" class="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-center gap-2 text-xs text-amber-300 hidden">
+        <i data-lucide="gift" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>
+        <span>Fondo acumulado de <strong id="banner-bonus-total" class="text-amber-200"></strong> se repartirá entre <strong id="banner-bonus-winners" class="text-amber-200"></strong> ganadores elegidos al azar de entre los <strong id="banner-bonus-eligible" class="text-amber-200"></strong> últimos puestos.</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex border-b border-slate-800 mb-5 gap-2">
+      <button onclick="switchTab('rounds')" id="tab-btn-rounds" class="px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-emerald-500 text-emerald-400 bg-slate-900/60 flex items-center gap-2">
+        <i data-lucide="list-ordered" class="w-4 h-4"></i> Rondas y Fechas
+      </button>
+      <button onclick="switchTab('matrix')" id="tab-btn-matrix" class="px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <i data-lucide="grid" class="w-4 h-4"></i> Matriz de Pagos
+      </button>
+      <button onclick="switchTab('raffle')" id="tab-btn-raffle" class="px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <i data-lucide="dices" class="w-4 h-4"></i> Sorteo
+      </button>
+    </div>
+
+    <!-- Tab Content 1: Rondas y Fechas -->
+    <div id="tab-content-rounds" class="space-y-3">
+      <div id="rounds-list-container" class="space-y-3"></div>
+    </div>
+
+    <!-- Tab Content 2: Matriz de Pagos -->
+    <div id="tab-content-matrix" class="hidden">
+      <div class="glass-card rounded-2xl p-4 overflow-x-auto custom-scrollbar border border-slate-800">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400">
+              <th class="py-2.5 px-3 font-bold">Participante</th>
+              <th id="matrix-header-rounds" class="py-2.5 px-3 font-bold" colspan="10">Progreso de Rondas</th>
+            </tr>
+          </thead>
+          <tbody id="matrix-table-body" class="divide-y divide-slate-800/50"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab Content 3: Sorteo -->
+    <div id="tab-content-raffle" class="hidden space-y-4">
+      
+      <!-- Main Turns Raffle Box -->
+      <div class="glass-card rounded-2xl p-5 border border-slate-800 text-center">
+        <div class="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
+          <i data-lucide="shuffle" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-sm font-extrabold text-white">Sorteo de Puestos Generales</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+          El <strong class="text-emerald-400">Turno #1</strong> pertenece al Organizador. Los puestos del 2 en adelante se asignarán de forma aleatoria.
+        </p>
+        <button id="btn-main-raffle" onclick="runMainRaffleAnimation()" class="mt-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mx-auto">
+          <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+          Sortear Puestos
+        </button>
+      </div>
+
+      <!-- Bonus Raffle Special Box (Shown if bonus exists) -->
+      <div id="bonus-raffle-section" class="glass-card rounded-2xl p-5 border border-amber-500/40 bg-amber-950/10 text-center hidden">
+        <div class="w-12 h-12 bg-amber-500/20 text-amber-300 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-amber-500/30">
+          <i data-lucide="gift" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-sm font-extrabold text-amber-300">Sorteo Especial: Fondo de Espera</h3>
+        <p id="bonus-raffle-desc" class="text-xs text-slate-300 mt-1 max-w-md mx-auto">
+          Se repartirá el acumulado entre los ganadores seleccionados al azar.
+        </p>
+        <div id="bonus-raffle-action-area" class="mt-4"></div>
+      </div>
+
+      <!-- Turns List -->
+      <div class="glass-card rounded-2xl p-4 border border-slate-800 space-y-2">
+        <h4 class="text-xs font-bold text-slate-300 mb-3 flex items-center gap-2">
+          <i data-lucide="list" class="w-4 h-4 text-emerald-400"></i> Orden de Turnos Asignados
+        </h4>
+        <div id="turns-list-container" class="space-y-2"></div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Modal: Crear Nuevo San -->
+  <div id="modal-create-san" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-5 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i> Crear Nuevo San
+        </h3>
+        <button onclick="closeModal('modal-create-san')" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleCreateSan(event)" class="mt-4 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nombre del San</label>
+          <input type="text" id="input-san-name" required placeholder="Ej. San de Motos, Navideño..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Cuota Base ($)</label>
+            <input type="number" id="input-san-quota" required min="1" step="any" placeholder="30" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-amber-300 mb-1">Aporte Extra Espera ($)</label>
+            <input type="number" id="input-san-bonus" min="0" step="any" value="2" placeholder="Ej. 2" class="w-full bg-slate-950 border border-amber-500/40 text-amber-300 font-semibold rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-amber-300 mb-1">Últimos Elegibles al Bono</label>
+            <input type="number" id="input-san-bonus-eligible" min="1" max="15" value="5" class="w-full bg-slate-950 border border-amber-500/40 text-amber-300 font-semibold rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400" title="Cantidad de puestos del final que entran al sorteo del fondo">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-amber-300 mb-1">Ganadores del Bono</label>
+            <input type="number" id="input-san-bonus-winners" min="1" max="10" value="2" class="w-full bg-slate-950 border border-amber-500/40 text-amber-300 font-semibold rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-400" title="Cuántos ganadores se llevarán el premio repartido">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Frecuencia</label>
+            <select id="input-san-frequency" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <option value="weekly">Semanal</option>
+              <option value="biweekly">Quincenal</option>
+              <option value="monthly">Mensual</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Fecha Primer Pago</label>
+            <input type="date" id="input-san-start-date" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nombre del Organizador (Turno #1)</label>
+          <input type="text" id="input-organizer-name" required placeholder="Tu Nombre" class="w-full bg-slate-950 border border-emerald-500/40 text-emerald-300 font-bold rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-400">
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-bold text-slate-300">Total Integrantes (incluyéndote)</label>
+            <input type="number" id="input-san-total-members" min="2" max="50" value="10" onchange="generateMemberInputs(this.value)" class="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-center text-white">
+          </div>
+          <p class="text-[10px] text-slate-400 mb-2">Ingresa los nombres de los demás participantes:</p>
+          <div id="dynamic-members-container" class="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar"></div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeModal('modal-create-san')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Cancelar</button>
+          <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-2 rounded-xl text-xs uppercase tracking-wider transition">Crear San</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Registrar Pago -->
+  <div id="modal-pay-round" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+          <i data-lucide="credit-card" class="w-4 h-4 text-emerald-400"></i> Registrar Pago
+        </h3>
+        <button onclick="closeModal('modal-pay-round')" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <div class="bg-slate-950 rounded-xl p-3 border border-slate-800">
+          <span class="text-[10px] text-slate-400 uppercase font-bold">Ronda y Beneficiario</span>
+          <p id="pay-modal-round-info" class="text-xs font-bold text-emerald-400 mt-0.5">-</p>
+          <p id="pay-modal-member-name" class="text-sm font-black text-white mt-0.5">-</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Método de Pago</label>
+          <select id="pay-modal-method" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            <option value="Efectivo USD ($)">Efectivo USD ($)</option>
+            <option value="Pago Móvil">Pago Móvil</option>
+            <option value="Transferencia">Transferencia Bancaria</option>
+            <option value="Binance / Crypto">Binance / Crypto</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Referencia / Nota (Opcional)</label>
+          <input type="text" id="pay-modal-ref" placeholder="Ej. Ref #84920" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+          <button type="button" id="btn-pay-modal-toggle" onclick="togglePaymentState()" class="px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20">
+            Marcar como Pendiente
+          </button>
+          <button type="button" onclick="savePaymentFromModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
+            Guardar Pago
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // App State
+    let appState = {
+      sanes: [],
+      activeSanId: null
+    };
+
+    let activeTab = 'rounds';
+    let currentPaymentTarget = null; // { roundNumber, memberName }
+
+    // Initial Demo San Data
+    const DEMO_SAN = {
+      id: 'san_demo_001',
+      name: 'San de Motos SBR',
+      quota: 30,
+      bonusPerRound: 2,
+      bonusEligibleCount: 5,
+      bonusWinnersCount: 2,
+      bonusWinners: [],
+      frequency: 'weekly',
+      startDate: new Date().toISOString().split('T')[0],
+      organizer: 'Danny (Tú)',
+      members: ['Danny (Tú)', 'Carlos M.', 'María G.', 'José P.', 'Luis A.', 'Andrea R.', 'Kevin S.', 'Patricia H.', 'Gabriel C.', 'Yolanda T.'],
+      turns: [
+        { turn: 1, name: 'Danny (Tú)', isOrganizer: true },
+        { turn: 2, name: 'Carlos M.' },
+        { turn: 3, name: 'María G.' },
+        { turn: 4, name: 'José P.' },
+        { turn: 5, name: 'Luis A.' },
+        { turn: 6, name: 'Andrea R.' },
+        { turn: 7, name: 'Kevin S.' },
+        { turn: 8, name: 'Patricia H.' },
+        { turn: 9, name: 'Gabriel C.' },
+        { turn: 10, name: 'Yolanda T.' }
+      ],
+      payments: {}
+    };
+
+    // Load & Initialize App
+    window.onload = function() {
+      loadAppState();
+      if (appState.sanes.length === 0) {
+        appState.sanes.push(DEMO_SAN);
+        appState.activeSanId = DEMO_SAN.id;
+        saveAppState();
+      }
+      initSanRounds(getActiveSan());
+      generateMemberInputs(9);
+      renderApp();
+      lucide.createIcons();
+    };
+
+    function saveAppState() {
+      localStorage.setItem('sanmanager_pro_state', JSON.stringify(appState));
+    }
+
+    function loadAppState() {
+      const saved = localStorage.getItem('sanmanager_pro_state');
+      if (saved) {
+        try {
+          appState = JSON.parse(saved);
+        } catch (e) {
+          console.error("Error cargando estado:", e);
+        }
+      }
+    }
+
+    function getActiveSan() {
+      return appState.sanes.find(s => s.id === appState.activeSanId) || appState.sanes[0];
+    }
+
+    function calculateDueDate(startDateStr, index, frequency) {
+      const start = new Date(startDateStr);
+      let daysToAdd = 0;
+      if (frequency === 'weekly') daysToAdd = index * 7;
+      else if (frequency === 'biweekly') daysToAdd = index * 14;
+      else if (frequency === 'monthly') daysToAdd = index * 30;
+
+      start.setDate(start.getDate() + daysToAdd);
+      return start.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function initSanRounds(san) {
+      if (!san) return;
+      const bonusPerRound = parseFloat(san.bonusPerRound) || 0;
+      const bonusEligibleCount = parseInt(san.bonusEligibleCount) || 5;
+      const bonusWinnersCount = parseInt(san.bonusWinnersCount) || 2;
+      const totalRounds = san.turns.length;
+
+      const totalBonusAccumulated = bonusPerRound > 0 ? (bonusPerRound * san.members.length * totalRounds) : 0;
+      const bonusPerWinner = (bonusPerRound > 0 && bonusWinnersCount > 0) ? (totalBonusAccumulated / bonusWinnersCount) : 0;
+
+      san.rounds = san.turns.map((t, idx) => {
+        const turnNumber = idx + 1;
+        const isBonusEligible = bonusPerRound > 0 && (turnNumber > (totalRounds - bonusEligibleCount));
+        const isWinner = san.bonusWinners && san.bonusWinners.includes(t.name);
+
+        return {
+          roundNumber: turnNumber,
+          recipient: t.name,
+          isOrganizer: t.isOrganizer || false,
+          isBonusEligible: isBonusEligible,
+          isWinner: isWinner,
+          dueDate: calculateDueDate(san.startDate, idx, san.frequency),
+          bonusAmount: isWinner ? bonusPerWinner : 0
+        };
+      });
+
+      if (!san.payments) san.payments = {};
+    }
+
+    function renderApp() {
+      const activeSan = getActiveSan();
+      if (!activeSan) return;
+
+      // Render San Selector Header
+      const selector = document.getElementById('select-active-san');
+      selector.innerHTML = appState.sanes.map(s => 
+        `<option value="${s.id}" ${s.id === activeSan.id ? 'selected' : ''}>${s.name}</option>`
+      ).join('');
+
+      // Header Details
+      document.getElementById('san-title').innerText = activeSan.name;
+      document.getElementById('san-organizer').innerText = activeSan.organizer;
+      document.getElementById('san-start-date').innerText = new Date(activeSan.startDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+      document.getElementById('san-freq-badge').innerText = activeSan.frequency === 'weekly' ? 'Semanal' : activeSan.frequency === 'biweekly' ? 'Quincenal' : 'Mensual';
+
+      // Stats
+      const basePool = activeSan.quota * activeSan.members.length;
+      const bonusPerRound = parseFloat(activeSan.bonusPerRound) || 0;
+      const totalBonus = bonusPerRound * activeSan.members.length * activeSan.turns.length;
+
+      document.getElementById('stat-quota').innerText = `$${activeSan.quota}`;
+      document.getElementById('stat-base-pool').innerText = `$${basePool}`;
+      document.getElementById('stat-members-count').innerText = activeSan.members.length;
+
+      const bonusBox = document.getElementById('stat-bonus-box');
+      const bonusBanner = document.getElementById('bonus-info-banner');
+
+      if (bonusPerRound > 0) {
+        bonusBox.classList.remove('hidden');
+        bonusBanner.classList.remove('hidden');
+        document.getElementById('stat-total-bonus').innerText = `$${totalBonus}`;
+        document.getElementById('banner-bonus-total').innerText = `$${totalBonus}`;
+        document.getElementById('banner-bonus-winners').innerText = activeSan.bonusWinnersCount || 2;
+        document.getElementById('banner-bonus-eligible').innerText = activeSan.bonusEligibleCount || 5;
+      } else {
+        bonusBox.classList.add('hidden');
+        bonusBanner.classList.add('hidden');
+      }
+
+      // Render Active Tab Content
+      if (activeTab === 'rounds') renderRoundsTab(activeSan);
+      else if (activeTab === 'matrix') renderMatrixTab(activeSan);
+      else if (activeTab === 'raffle') renderRaffleTab(activeSan);
+
+      lucide.createIcons();
+    }
+
+    function switchSan(id) {
+      appState.activeSanId = id;
+      saveAppState();
+      initSanRounds(getActiveSan());
+      renderApp();
+    }
+
+    function switchTab(tabName) {
+      activeTab = tabName;
+      const tabs = ['rounds', 'matrix', 'raffle'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const content = document.getElementById(`tab-content-${t}`);
+        if (t === tabName) {
+          btn.className = "px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-emerald-500 text-emerald-400 bg-slate-900/60 flex items-center gap-2";
+          content.classList.remove('hidden');
+        } else {
+          btn.className = "px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2";
+          content.classList.add('hidden');
+        }
+      });
+      renderApp();
+    }
+
+    // Render Rounds Tab
+    function renderRoundsTab(san) {
+      const container = document.getElementById('rounds-list-container');
+      const basePool = san.quota * san.members.length;
+
+      container.innerHTML = san.rounds.map(r => {
+        const roundPays = san.payments[r.roundNumber] || {};
+        const paidCount = Object.values(roundPays).filter(p => p.paid).length;
+        const isComplete = paidCount === san.members.length;
+        const totalPayout = basePool + (r.bonusAmount || 0);
+
+        return `
+          <div class="glass-card rounded-2xl p-4 border ${r.isWinner ? 'border-amber-500/50 bg-amber-950/20' : isComplete ? 'border-emerald-500/40 bg-emerald-950/10' : 'border-slate-800'} flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl ${r.isWinner ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 font-black' : isComplete ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-300'} flex items-center justify-center font-extrabold text-sm flex-shrink-0">
+                #${r.roundNumber}
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs font-bold text-white">${r.recipient}</span>
+                  ${r.isOrganizer ? '<span class="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-1.5 py-0.5 rounded">Org #1</span>' : ''}
+                  ${r.isWinner ? '<span class="text-[9px] font-bold text-slate-950 bg-amber-400 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="award" class="w-3 h-3"></i> Ganador Fondo (+$' + r.bonusAmount + ')</span>' : r.isBonusEligible ? '<span class="text-[9px] font-bold text-amber-200 bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.5 rounded">Elegible Fondo</span>' : ''}
+                </div>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
+                  <span><i data-lucide="calendar" class="w-3 h-3 inline text-emerald-400"></i> ${r.dueDate}</span>
+                  <span>•</span>
+                  <span class="${r.isWinner ? 'text-amber-300 font-extrabold' : 'text-emerald-400 font-semibold'}">Recibe: $${totalPayout}</span>
+                </div>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Pagos Recaudados</span>
+              <span class="text-xs font-black ${isComplete ? 'text-emerald-400' : 'text-amber-400'}">${paidCount} / ${san.members.length}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Matrix Tab
+    function renderMatrixTab(san) {
+      const headerRounds = document.getElementById('matrix-header-rounds');
+      headerRounds.colSpan = san.rounds.length;
+
+      const body = document.getElementById('matrix-table-body');
+      body.innerHTML = san.members.map(member => {
+        const isOrg = member === san.organizer;
+
+        const roundCells = san.rounds.map(r => {
+          const p = (san.payments[r.roundNumber] || {})[member] || { paid: false };
+          const isPaid = p.paid;
+
+          return `
+            <td class="py-2.5 px-2 text-center">
+              <button onclick="openPaymentModal(${r.roundNumber}, '${member}')" class="w-7 h-7 rounded-lg border flex items-center justify-center transition text-[10px] font-bold mx-auto ${isPaid ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 hover:bg-emerald-500/30' : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300'}">
+                ${isPaid ? '✓' : '#' + r.roundNumber}
+              </button>
+            </td>
+          `;
+        }).join('');
+
+        return `
+          <tr>
+            <td class="py-2.5 px-3 font-bold text-white flex items-center gap-1.5">
+              <span>${member}</span>
+              ${isOrg ? '<span class="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1 rounded">Org</span>' : ''}
+            </td>
+            ${roundCells}
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Render Raffle Tab
+    function renderRaffleTab(san) {
+      const container = document.getElementById('turns-list-container');
+      const totalTurns = san.turns.length;
+      const eCount = parseInt(san.bonusEligibleCount) || 5;
+      const wCount = parseInt(san.bonusWinnersCount) || 2;
+      const hasBonus = (parseFloat(san.bonusPerRound) || 0) > 0;
+
+      const bonusSection = document.getElementById('bonus-raffle-section');
+      const actionArea = document.getElementById('bonus-raffle-action-area');
+      const desc = document.getElementById('bonus-raffle-desc');
+
+      if (hasBonus) {
+        bonusSection.classList.remove('hidden');
+        desc.innerText = `Se repartirá el fondo entre ${wCount} ganadores elegidos al azar de entre los ${eCount} últimos puestos.`;
+
+        const isDrawn = san.bonusWinners && san.bonusWinners.length > 0;
+
+        if (isDrawn) {
+          actionArea.innerHTML = `
+            <div class="p-3 bg-amber-950/40 border border-amber-500/40 rounded-xl">
+              <h5 class="text-xs font-bold text-amber-300 mb-2 uppercase tracking-wider">¡Ganadores del Fondo de Espera!</h5>
+              <div class="flex flex-wrap gap-2 justify-center mb-2">
+                ${san.bonusWinners.map(w => `<span class="px-3 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-xs rounded-lg shadow-lg flex items-center gap-1"><i data-lucide="award" class="w-3.5 h-3.5"></i> ${w}</span>`).join('')}
+              </div>
+              <button onclick="resetBonusRaffle()" class="text-[11px] text-amber-400/80 hover:text-amber-300 underline flex items-center gap-1 mx-auto mt-2">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Volver a sortear el fondo
+              </button>
+            </div>
+          `;
+        } else {
+          actionArea.innerHTML = `
+            <button id="btn-run-bonus-raffle" onclick="runBonusRaffleAnimation()" class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 mx-auto">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              Sortear ${wCount} Ganadores del Fondo
+            </button>
+          `;
+        }
+      } else {
+        bonusSection.classList.add('hidden');
+      }
+
+      container.innerHTML = san.turns.map(t => {
+        const isBonusEligible = hasBonus && (t.turn > (totalTurns - eCount));
+        const isWinner = san.bonusWinners && san.bonusWinners.includes(t.name);
+
+        return `
+          <div class="p-2.5 rounded-xl ${t.isOrganizer ? 'bg-emerald-950/20 border border-emerald-500/30' : isWinner ? 'bg-amber-500/20 border border-amber-500/50' : isBonusEligible ? 'bg-amber-950/20 border border-amber-500/30' : 'bg-slate-900 border border-slate-800'} flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-7 rounded-lg ${t.isOrganizer ? 'bg-emerald-500 text-slate-950 font-black' : isWinner ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 font-black' : isBonusEligible ? 'bg-amber-900 text-amber-300 font-bold' : 'bg-slate-800 text-slate-300 font-bold'} text-xs flex items-center justify-center">
+                #${t.turn}
+              </div>
+              <span class="text-xs font-bold ${t.isOrganizer ? 'text-emerald-300' : isWinner ? 'text-amber-300' : isBonusEligible ? 'text-amber-200' : 'text-slate-200'}">${t.name}</span>
+            </div>
+            ${t.isOrganizer ? '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/50">Turno #1 Fijo</span>' : isWinner ? '<span class="text-[10px] font-bold text-slate-950 bg-amber-400 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="award" class="w-3 h-3"></i> ¡Ganador!</span>' : isBonusEligible ? '<span class="text-[10px] font-bold text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/50">Elegible Fondo</span>' : `<span class="text-[10px] text-slate-500">Ronda ${t.turn}</span>`}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Main Raffle Animation (Turn 2 onwards)
+    function runMainRaffleAnimation() {
+      const san = getActiveSan();
+      if (!san) return;
+
+      const btn = document.getElementById('btn-main-raffle');
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Sorteando...`;
+      lucide.createIcons();
+
+      const organizerTurn = san.turns.find(t => t.isOrganizer) || { turn: 1, name: san.organizer, isOrganizer: true };
+      const otherMembers = san.members.filter(m => m !== san.organizer);
+
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        const shuffled = [...otherMembers].sort(() => 0.5 - Math.random());
+        san.turns = [organizerTurn, ...shuffled.map((m, idx) => ({ turn: idx + 2, name: m }))];
+        renderRaffleTab(san);
+
+        if (count >= 15) {
+          clearInterval(interval);
+          btn.disabled = false;
+          btn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i> Volver a Sortear`;
+          initSanRounds(san);
+          saveAppState();
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+          lucide.createIcons();
+        }
+      }, 100);
+    }
+
+    // Bonus Raffle Animation
+    function runBonusRaffleAnimation() {
+      const san = getActiveSan();
+      if (!san) return;
+
+      const totalTurns = san.turns.length;
+      const eCount = parseInt(san.bonusEligibleCount) || 5;
+      const wCount = parseInt(san.bonusWinnersCount) || 2;
+      const startIndex = Math.max(1, totalTurns - eCount);
+
+      const eligibleTurns = san.turns.slice(startIndex);
+
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        const shuffled = [...eligibleTurns].sort(() => 0.5 - Math.random());
+        san.bonusWinners = shuffled.slice(0, wCount).map(t => t.name);
+        renderRaffleTab(san);
+
+        if (count >= 15) {
+          clearInterval(interval);
+          initSanRounds(san);
+          saveAppState();
+          confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#f59e0b', '#fbbf24', '#d97706', '#ffffff'] });
+          renderApp();
+        }
+      }, 100);
+    }
+
+    function resetBonusRaffle() {
+      const san = getActiveSan();
+      if (!san) return;
+      san.bonusWinners = [];
+      initSanRounds(san);
+      saveAppState();
+      renderApp();
+    }
+
+    // Member Dynamic Input Generator for Create Modal
+    function generateMemberInputs(total) {
+      const count = Math.max(1, total - 1);
+      const container = document.getElementById('dynamic-members-container');
+      container.innerHTML = '';
+      for (let i = 1; i <= count; i++) {
+        container.innerHTML += `
+          <input type="text" class="member-input-item w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="Participante #${i + 1}">
+        `;
+      }
+    }
+
+    // Modal Control Functions
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // Payment Modal Functions
+    function openPaymentModal(roundNumber, memberName) {
+      currentPaymentTarget = { roundNumber, memberName };
+      const san = getActiveSan();
+      const p = (san.payments[roundNumber] || {})[memberName] || { paid: false, method: 'Efectivo USD ($)', ref: '' };
+
+      document.getElementById('pay-modal-round-info').innerText = `Ronda #${roundNumber}`;
+      document.getElementById('pay-modal-member-name').innerText = memberName;
+      document.getElementById('pay-modal-method').value = p.method || 'Efectivo USD ($)';
+      document.getElementById('pay-modal-ref').value = p.ref || '';
+
+      const toggleBtn = document.getElementById('btn-pay-modal-toggle');
+      if (p.paid) {
+        toggleBtn.innerText = "Marcar como Pendiente";
+        toggleBtn.className = "px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20";
+      } else {
+        toggleBtn.innerText = "Marcar Pagado";
+        toggleBtn.className = "px-3 py-2 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20";
+      }
+
+      openModal('modal-pay-round');
+    }
+
+    function savePaymentFromModal() {
+      if (!currentPaymentTarget) return;
+      const { roundNumber, memberName } = currentPaymentTarget;
+      const san = getActiveSan();
+
+      if (!san.payments[roundNumber]) san.payments[roundNumber] = {};
+
+      san.payments[roundNumber][memberName] = {
+        paid: true,
+        method: document.getElementById('pay-modal-method').value,
+        ref: document.getElementById('pay-modal-ref').value,
+        date: new Date().toLocaleDateString('es-ES')
+      };
+
+      saveAppState();
+      closeModal('modal-pay-round');
+      renderApp();
+    }
+
+    function togglePaymentState() {
+      if (!currentPaymentTarget) return;
+      const { roundNumber, memberName } = currentPaymentTarget;
+      const san = getActiveSan();
+
+      if (!san.payments[roundNumber]) san.payments[roundNumber] = {};
+      const currentStatus = san.payments[roundNumber][memberName]?.paid || false;
+
+      san.payments[roundNumber][memberName] = {
+        paid: !currentStatus,
+        method: document.getElementById('pay-modal-method').value,
+        ref: document.getElementById('pay-modal-ref').value,
+        date: new Date().toLocaleDateString('es-ES')
+      };
+
+      saveAppState();
+      closeModal('modal-pay-round');
+      renderApp();
+    }
+
+    // Handle San Creation
+    function handleCreateSan(e) {
+      e.preventDefault();
+      const name = document.getElementById('input-san-name').value;
+      const quota = parseFloat(document.getElementById('input-san-quota').value);
+      const bonusPerRound = parseFloat(document.getElementById('input-san-bonus').value) || 0;
+      const bonusEligibleCount = parseInt(document.getElementById('input-san-bonus-eligible').value) || 5;
+      const bonusWinnersCount = parseInt(document.getElementById('input-san-bonus-winners').value) || 2;
+      const frequency = document.getElementById('input-san-frequency').value;
+      const startDate = document.getElementById('input-san-start-date').value;
+      const organizer = document.getElementById('input-organizer-name').value;
+
+      const memberInputs = document.querySelectorAll('.member-input-item');
+      const otherMembers = Array.from(memberInputs).map((i, idx) => i.value.trim() || `Participante #${idx + 2}`);
+
+      const members = [organizer, ...otherMembers];
+      const turns = members.map((m, idx) => ({ turn: idx + 1, name: m, isOrganizer: idx === 0 }));
+
+      const newSan = {
+        id: 'san_' + Date.now(),
+        name,
+        quota,
+        bonusPerRound,
+        bonusEligibleCount,
+        bonusWinnersCount,
+        bonusWinners: [],
+        frequency,
+        startDate,
+        organizer,
+        members,
+        turns,
+        payments: {}
+      };
+
+      initSanRounds(newSan);
+      appState.sanes.push(newSan);
+      appState.activeSanId = newSan.id;
+      saveAppState();
+      closeModal('modal-create-san');
+      renderApp();
+    }
+
+    // Delete San
+    function confirmDeleteSan() {
+      const activeSan = getActiveSan();
+      if (!activeSan) return;
+      if (appState.sanes.length <= 1) {
+        alert("Debes conservar al menos un San registrado.");
+        return;
+      }
+      if (confirm(`¿Estás seguro de que deseas eliminar el San "${activeSan.name}"?`)) {
+        appState.sanes = appState.sanes.filter(s => s.id !== activeSan.id);
+        appState.activeSanId = appState.sanes[0].id;
+        saveAppState();
+        renderApp();
+      }
+    }
+  </script>
+</body>
+</html>
